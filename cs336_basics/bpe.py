@@ -82,12 +82,3 @@ def train_bpe(
         vocab[len(vocab)] = b"".join(max_pair)
 
     return vocab, merges
-
-
-print(
-    train_bpe(
-        "/Users/user/workspace/stanford-cs336/assignment1-basics/tests/fixtures/tinystories_sample.txt",
-        10000,
-        ["<|endoftext|>"],
-    )
-)
