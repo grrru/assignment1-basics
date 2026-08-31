@@ -41,44 +41,96 @@ def train_bpe(
 
     str_pre_tokens = Counter(match.group() for split in splitted for match in regex.finditer(PAT, split))
 
-    pre_tokens: dict[tuple[bytes, ...], int] = {}
+    # pre_tokens을 tuple이 아닌 list로 두어 merge 시 바로 수정 가능하도록 함.
+    pre_tokens: list[list[bytes]] = []
+    pre_token_count: list[int] = []
+
     for k, v in str_pre_tokens.items():
         bk = k.encode("utf-8")
-        t = tuple(bk[i : i + 1] for i in range(len(bk)))
-        pre_tokens[t] = v
+        li = list(bk[i : i + 1] for i in range(len(bk)))
+        pre_tokens.append(li)
+        pre_token_count.append(v)
 
     # 2. merge pair
     merges: list[tuple[bytes, bytes]] = []
+    pairs: dict[tuple[bytes, bytes], int] = {}
+    pre_token_id_for_pairs: dict[tuple[bytes, bytes], set[int]] = {}
 
+    # 2-1. init pairs
+    for i in range(len(pre_tokens)):
+        pre_token = pre_tokens[i]
+        cnt = pre_token_count[i]
+
+        for j in range(len(pre_token) - 1):
+            p: tuple[bytes, bytes] = (pre_token[j], pre_token[j + 1])
+            pairs[p] = pairs.get(p, 0) + cnt
+            if p not in pre_token_id_for_pairs:
+                pre_token_id_for_pairs[p] = set()
+            pre_token_id_for_pairs[p].add(i)
+
+    # 2-2. merge and update
     while len(vocab) < vocab_size:
-        # find max count pair (count first, byte order second)
-        checked_pair: dict[tuple[bytes, ...], int] = {}
-        for k, v in pre_tokens.items():
-            for i in range(len(k) - 1):
-                pair = k[i : i + 2]
-                checked_pair[pair] = checked_pair.get(pair, 0) + v
-
-        if not checked_pair:
+        if not pairs:
             break
-        max_pair = max(checked_pair.items(), key=lambda x: (x[1], x[0]))[0]
-        merges.append((max_pair[0], max_pair[1]))
+        # find max count pair (count first, byte order second)
+        max_pair = max(pairs.items(), key=lambda item: (item[1], item[0]))[0]
+        merges.append(max_pair)
+        max_pair_bytes = b"".join(max_pair)
+        vocab[len(vocab)] = max_pair_bytes
+        pairs.pop(max_pair)
 
-        merged_pre_tokens: dict[tuple[bytes, ...], int] = {}
-        for k, v in pre_tokens.items():
-            i = 0
-            n_k: list[bytes] = []
-            while i < len(k):
-                pair = k[i : i + 2]
-                if pair == max_pair:
-                    n_k.append(b"".join(pair))
-                    i += 2
+        indices: set[int] = pre_token_id_for_pairs.pop(max_pair)
+        for idx in indices:
+            new_list: list[bytes] = []
+            t = 0
+            while t < len(pre_tokens[idx]):
+                if t != len(pre_tokens[idx]) - 1 and (pre_tokens[idx][t], pre_tokens[idx][t + 1]) == max_pair:
+                    new_list.append(max_pair_bytes)
+                    t += 2
                 else:
-                    n_k.append(k[i : i + 1][0])
-                    i += 1
+                    new_list.append(pre_tokens[idx][t])
+                    t += 1
 
-            merged_pre_tokens[tuple(n_k)] = v
+            prev_d: dict[tuple[bytes, bytes], int] = {}
+            new_d: dict[tuple[bytes, bytes], int] = {}
+            pair_set: set[tuple[bytes, bytes]] = set()
 
-        pre_tokens = merged_pre_tokens
-        vocab[len(vocab)] = b"".join(max_pair)
+            for i in range(len(pre_tokens[idx]) - 1):
+                p: tuple[bytes, bytes] = (pre_tokens[idx][i], pre_tokens[idx][i + 1])
+                if p == max_pair:
+                    continue
+                prev_d[p] = prev_d.get(p, 0) + 1
+                pair_set.add(p)
+
+            for i in range(len(new_list) - 1):
+                p: tuple[bytes, bytes] = (new_list[i], new_list[i + 1])
+                new_d[p] = new_d.get(p, 0) + 1
+                pair_set.add(p)
+
+            for p in pair_set:
+                diff = new_d.get(p, 0) - prev_d.get(p, 0)
+                pairs[p] = pairs.get(p, 0) + diff * pre_token_count[idx]
+                if pairs[p] == 0:
+                    pairs.pop(p)
+
+                if prev_d.get(p, 0) == 0:
+                    if p not in pre_token_id_for_pairs:
+                        pre_token_id_for_pairs[p] = set()
+                    pre_token_id_for_pairs[p].add(idx)
+
+                if new_d.get(p, 0) == 0:
+                    if p in pre_token_id_for_pairs:
+                        pre_token_id_for_pairs[p].discard(idx)
+
+            pre_tokens[idx] = new_list
 
     return vocab, merges
+
+
+# print(
+#     train_bpe(
+#         "/Users/user/workspace/stanford-cs336/assignment1-basics/tests/fixtures/tinystories_sample.txt",
+#         10000,
+#         ["<|endoftext|>"],
+#     )
+# )
