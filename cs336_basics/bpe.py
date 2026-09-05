@@ -1,5 +1,6 @@
 from collections import Counter
 
+import pickle
 import regex
 
 
@@ -127,10 +128,24 @@ def train_bpe(
     return vocab, merges
 
 
-# print(
-#     train_bpe(
-#         "/Users/user/workspace/stanford-cs336/assignment1-basics/tests/fixtures/tinystories_sample.txt",
-#         10000,
-#         ["<|endoftext|>"],
-#     )
-# )
+# train tinystories
+def train_bpe_tinystories():
+    vocab, merges = train_bpe(
+        "/Users/grrru/workspace/stanford-cs336/assignment1-basics/data/TinyStoriesV2-GPT4-train.txt",
+        10000,
+        ["<|endoftext|>"],
+    )
+
+    pickle_tokenizer(vocab, merges, "TinyStories")
+
+
+def pickle_tokenizer(vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]], prefix: str):
+    with open(f"{prefix}_vocab.pkl", "wb") as f:
+        pickle.dump(vocab, f)
+
+    with open(f"{prefix}_merges.pkl", "wb") as f:
+        pickle.dump(merges, f)
+
+
+if __name__ == "__main__":
+    train_bpe_tinystories()
