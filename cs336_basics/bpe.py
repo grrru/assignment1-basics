@@ -1,6 +1,7 @@
 from collections import Counter
 
 import pickle
+import time
 import regex
 
 
@@ -17,6 +18,8 @@ def train_bpe(
     merges: A list of BPE merges
     """
 
+    start_time = time.perf_counter()
+
     # 0. Initialize vocab
     if vocab_size < 256 + len(special_tokens):
         raise ValueError
@@ -28,6 +31,9 @@ def train_bpe(
     for special_token in special_tokens:
         idx = len(vocab)
         vocab[idx] = special_token.encode("utf-8")
+
+    init_vocab_time = time.perf_counter()
+    print(f"init vocab: {(init_vocab_time - start_time) * 1000:.3f}ms")
 
     # 1. pre-tokenization
     with open(input_path, "rb") as f:
@@ -41,6 +47,7 @@ def train_bpe(
         splitted = [file.decode("utf-8")]
 
     str_pre_tokens = Counter(match.group() for split in splitted for match in regex.finditer(PAT, split))
+    print(f"str_pre_tokens {len(str_pre_tokens)}")
 
     # pre_tokens을 tuple이 아닌 list로 두어 merge 시 바로 수정 가능하도록 함.
     pre_tokens: list[list[bytes]] = []
@@ -51,6 +58,9 @@ def train_bpe(
         li = list(bk[i : i + 1] for i in range(len(bk)))
         pre_tokens.append(li)
         pre_token_count.append(v)
+
+    pre_tokenizaition_time = time.perf_counter()
+    print(f"pre-tokenization: {(pre_tokenizaition_time - init_vocab_time) * 1000:.3f}ms")
 
     # 2. merge pair
     merges: list[tuple[bytes, bytes]] = []
@@ -73,6 +83,11 @@ def train_bpe(
     while len(vocab) < vocab_size:
         if not pairs:
             break
+
+        if len(vocab) % 100 == 0:
+            elapsed_time = time.perf_counter()
+            print(f"merged {len(vocab)} pairs: {(elapsed_time - pre_tokenizaition_time) * 1000:.3f}ms")
+
         # find max count pair (count first, byte order second)
         max_pair = max(pairs.items(), key=lambda item: (item[1], item[0]))[0]
         merges.append(max_pair)
@@ -124,6 +139,11 @@ def train_bpe(
                         pre_token_id_for_pairs[p].discard(idx)
 
             pre_tokens[idx] = new_list
+
+    merge_time = time.perf_counter()
+    print(f"merge: {(merge_time - pre_tokenizaition_time) * 1000:.3f}ms")
+    print("==================================================")
+    print(f"elapsed time: {(merge_time - start_time) * 1000:.3f}ms")
 
     return vocab, merges
 
