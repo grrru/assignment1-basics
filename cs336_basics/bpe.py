@@ -1,3 +1,4 @@
+from concurrent.futures import ProcessPoolExecutor, Future
 import os
 import pickle
 import time
@@ -40,17 +41,21 @@ def train_bpe(
     # 1. pre-tokenization
     str_pre_tokens: Counter[str] = Counter()
     with open(input_path, "rb") as f:
-        # special_tokens이 빈 경우 splitted가 한 글자씩 잘리는 걸 방지
         if special_tokens:
-            num_processes = 4
+            num_processes = min(4, os.cpu_count())
             boundaries = find_chunk_boundaries(f, num_processes, special_tokens[0].encode("utf-8"))
             special_token_pat = "|".join(regex.escape(special_token) for special_token in special_tokens)
-            for start, end in zip(boundaries[:-1], boundaries[1:]):
-                f.seek(start)
-                chunk = f.read(end - start).decode("utf-8", errors="ignore")
-                splitted_str = regex.split(special_token_pat, chunk)
-                str_pre_tokens.update(match_PAT(splitted_str, PAT))
+
+            with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
+                futures: list[Future[Counter[str]]] = []
+
+                for start, end in zip(boundaries[:-1], boundaries[1:]):
+                    futures.append(executor.submit(match_chunk_PAT, input_path, start, end, special_token_pat, PAT))
+
+                for future in futures:
+                    str_pre_tokens.update(future.result())
         else:
+            # special_tokens이 빈 경우 splitted가 한 글자씩 잘리는 걸 방지
             splitted_str = [f.read().decode("utf-8")]
             str_pre_tokens.update(match_PAT(splitted_str, PAT))
 
@@ -151,6 +156,16 @@ def train_bpe(
     print(f"elapsed time: {(merge_time - start_time) * 1000:.3f}ms")
 
     return vocab, merges
+
+
+# apply PAT to chunked file
+def match_chunk_PAT(file_path: str, start: int, end: int, special_token_pat: str, split_pattern: str) -> Counter[str]:
+    with open(file_path, "rb") as f:
+        f.seek(start)
+        chunk = f.read(end - start).decode("utf-8", errors="ignore")
+        splitted_str = regex.split(special_token_pat, chunk)
+
+    return match_PAT(splitted_str, split_pattern)
 
 
 def match_PAT(splitted_str: list[str], pattern: str) -> Counter[str]:
