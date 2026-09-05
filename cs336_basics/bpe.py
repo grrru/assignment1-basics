@@ -1,7 +1,9 @@
-from collections import Counter
-
+import os
 import pickle
 import time
+from collections import Counter
+from typing import BinaryIO
+
 import regex
 
 
@@ -36,18 +38,21 @@ def train_bpe(
     print(f"init vocab: {(init_vocab_time - start_time) * 1000:.3f}ms")
 
     # 1. pre-tokenization
+    str_pre_tokens: Counter[str] = Counter()
     with open(input_path, "rb") as f:
-        file = f.read()
-
-    # special_tokens이 빈 경우 splitted가 한 글자씩 잘리는 걸 방지
-    if special_tokens:
-        special_token_pat = "|".join(regex.escape(special_token) for special_token in special_tokens)
-        splitted = regex.split(special_token_pat, file.decode("utf-8"))
-    else:
-        splitted = [file.decode("utf-8")]
-
-    str_pre_tokens = Counter(match.group() for split in splitted for match in regex.finditer(PAT, split))
-    print(f"str_pre_tokens {len(str_pre_tokens)}")
+        # special_tokens이 빈 경우 splitted가 한 글자씩 잘리는 걸 방지
+        if special_tokens:
+            num_processes = 4
+            boundaries = find_chunk_boundaries(f, num_processes, special_tokens[0].encode("utf-8"))
+            special_token_pat = "|".join(regex.escape(special_token) for special_token in special_tokens)
+            for start, end in zip(boundaries[:-1], boundaries[1:]):
+                f.seek(start)
+                chunk = f.read(end - start).decode("utf-8", errors="ignore")
+                splitted_str = regex.split(special_token_pat, chunk)
+                str_pre_tokens.update(match_PAT(splitted_str, PAT))
+        else:
+            splitted_str = [f.read().decode("utf-8")]
+            str_pre_tokens.update(match_PAT(splitted_str, PAT))
 
     # pre_tokens을 tuple이 아닌 list로 두어 merge 시 바로 수정 가능하도록 함.
     pre_tokens: list[list[bytes]] = []
@@ -148,6 +153,67 @@ def train_bpe(
     return vocab, merges
 
 
+def match_PAT(splitted_str: list[str], pattern: str) -> Counter[str]:
+    return Counter(match.group() for split in splitted_str for match in regex.finditer(pattern, split))
+
+
+def find_chunk_boundaries(
+    file: BinaryIO,
+    desired_num_chunks: int,
+    split_special_token: bytes,
+) -> list[int]:
+    """
+    Chunk the file into parts that can be counted independently.
+    May return fewer chunks if the boundaries end up overlapping.
+    """
+    assert isinstance(split_special_token, bytes), "Must represent special token as a bytestring"
+
+    # Get total file size in bytes
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0)
+
+    chunk_size = file_size // desired_num_chunks
+
+    # Initial guesses for chunk boundary locations, uniformly spaced
+    # Chunks start on previous index, don't include last index
+    chunk_boundaries = [i * chunk_size for i in range(desired_num_chunks + 1)]
+    chunk_boundaries[-1] = file_size
+
+    mini_chunk_size = 4096  # Read ahead by 4k bytes at a time
+
+    for bi in range(1, len(chunk_boundaries) - 1):
+        initial_position = chunk_boundaries[bi]
+        file.seek(initial_position)  # Start at boundary guess
+        while True:
+            mini_chunk = file.read(mini_chunk_size)  # Read a mini chunk
+
+            # If EOF, this boundary should be at the end of the file
+            if mini_chunk == b"":
+                chunk_boundaries[bi] = file_size
+                break
+
+            # Find the special token in the mini chunk
+            found_at = mini_chunk.find(split_special_token)
+            if found_at != -1:
+                chunk_boundaries[bi] = initial_position + found_at
+                break
+            initial_position += mini_chunk_size
+
+    # Make sure all boundaries are unique, but might be fewer than desired_num_chunks
+    return sorted(set(chunk_boundaries))
+
+
+def train_bpe_examples():
+    vocab, merges = train_bpe(
+        "/Users/grrru/workspace/stanford-cs336/assignment1-basics/tests/fixtures/tinystories_sample.txt",
+        10000,
+        ["<|endoftext|>"],
+    )
+
+    pickle_tokenizer(vocab, merges, "examples")
+
+
 # train tinystories
 def train_bpe_tinystories():
     vocab, merges = train_bpe(
@@ -165,7 +231,3 @@ def pickle_tokenizer(vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]],
 
     with open(f"{prefix}_merges.pkl", "wb") as f:
         pickle.dump(merges, f)
-
-
-if __name__ == "__main__":
-    train_bpe_tinystories()
