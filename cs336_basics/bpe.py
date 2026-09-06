@@ -1,4 +1,5 @@
 from concurrent.futures import ProcessPoolExecutor, Future
+import heapq
 import os
 import pickle
 import time
@@ -9,6 +10,16 @@ import regex
 
 
 PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+
+
+class Pair:
+    p: tuple[bytes, bytes]
+
+    def __init__(self, p) -> None:
+        self.p = p
+
+    def __lt__(self, other):
+        return self.p > other.p
 
 
 def train_bpe(
@@ -71,9 +82,10 @@ def train_bpe(
     print(f"pre-tokenization: {(pre_tokenizaition_time - init_vocab_time) * 1000:.3f}ms")
 
     # 2. merge pair
-    merges: list[tuple[bytes, bytes]] = []
-    pairs: dict[tuple[bytes, bytes], int] = {}
-    pre_token_id_for_pairs: dict[tuple[bytes, bytes], set[int]] = {}
+    merges: list[tuple[bytes, bytes]] = []  # merged pair를 merge 순서대로 담는다.
+    pairs: dict[tuple[bytes, bytes], int] = {}  # 각 pair 수를 담는다.
+    pair_heap: list[tuple[int, Pair]] = []  # max pair를 구하기 위한 heapq.
+    pre_token_id_for_pairs: dict[tuple[bytes, bytes], set[int]] = {}  # 각 pair가 존재하는 pre_token의 id를 저장
 
     # 2-1. init pairs
     for i in range(len(pre_tokens)):
@@ -87,13 +99,23 @@ def train_bpe(
                 pre_token_id_for_pairs[p] = set()
             pre_token_id_for_pairs[p].add(i)
 
+    for pair in pairs.items():
+        heapq.heappush(pair_heap, (-pair[1], Pair(pair[0])))
+
     # 2-2. merge and update
     while len(vocab) < vocab_size:
         if not pairs:
             break
 
         # find max count pair (count first, byte order second)
-        max_pair = max(pairs.items(), key=lambda item: (item[1], item[0]))[0]
+        while True:
+            mp: tuple[int, Pair] = heapq.heappop(pair_heap)
+            if mp[1].p not in pairs or pairs[mp[1].p] != -mp[0]:
+                continue
+
+            max_pair = mp[1].p
+            break
+
         merges.append(max_pair)
         max_pair_bytes = b"".join(max_pair)
         vocab[len(vocab)] = max_pair_bytes
@@ -132,6 +154,8 @@ def train_bpe(
                 pairs[p] = pairs.get(p, 0) + diff * pre_token_count[idx]
                 if pairs[p] == 0:
                     pairs.pop(p)
+                else:
+                    heapq.heappush(pair_heap, (-pairs[p], Pair(p)))
 
                 if prev_d.get(p, 0) == 0:
                     if p not in pre_token_id_for_pairs:
