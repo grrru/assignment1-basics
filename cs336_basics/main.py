@@ -71,6 +71,14 @@ if __name__ == "__main__":
         pre-tokenization: 4702.632ms
         merge: 260860.510ms
         elapsed time: 265563.163ms
+
+        p1.  17305011  121.346    0.000  132.707    0.000 {built-in method _heapq.heappop}
+            heappop이 매 merge 당 매 pre_token에서 수행되어 같은 pair가 pre_token마다 다른 갯수로 heapq에 들어간다.
+            중복 pair가 heapq에 push/pop되는 횟수가 너무 많아 비효율적.
+            중복을 없애기 위해 pre_token 순회 시에는 set에 O(1)로 저장하고 merge 당 한 번 최종 갯수로 heapq를 갱신한다.
+
+            - 1757330    9.627    0.000   10.746    0.000 {built-in method _heapq.heappop}
+            heappop이 92% 절감
     """
 
     parser = argparse.ArgumentParser()

@@ -122,6 +122,8 @@ def train_bpe(
         pairs.pop(max_pair)
 
         indices: set[int] = pre_token_id_for_pairs.pop(max_pair)
+        added_pairs: set[tuple[bytes, bytes]] = set()
+
         for idx in indices:
             new_list: list[bytes] = []
             t = 0
@@ -144,6 +146,8 @@ def train_bpe(
                 prev_d[p] = prev_d.get(p, 0) + 1
                 pair_set.add(p)
 
+            pre_tokens[idx] = new_list
+
             for i in range(len(new_list) - 1):
                 p: tuple[bytes, bytes] = (new_list[i], new_list[i + 1])
                 new_d[p] = new_d.get(p, 0) + 1
@@ -155,7 +159,7 @@ def train_bpe(
                 if pairs[p] == 0:
                     pairs.pop(p)
                 else:
-                    heapq.heappush(pair_heap, (-pairs[p], Pair(p)))
+                    added_pairs.add(p)
 
                 if prev_d.get(p, 0) == 0:
                     if p not in pre_token_id_for_pairs:
@@ -166,7 +170,9 @@ def train_bpe(
                     if p in pre_token_id_for_pairs:
                         pre_token_id_for_pairs[p].discard(idx)
 
-            pre_tokens[idx] = new_list
+        for p in added_pairs:
+            if p in pairs:
+                heapq.heappush(pair_heap, (-pairs[p], Pair(p)))
 
     merge_time = time.perf_counter()
     print(f"merge: {(merge_time - pre_tokenizaition_time) * 1000:.3f}ms")
