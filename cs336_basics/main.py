@@ -5,7 +5,7 @@ from cs336_basics import bpe
 
 if __name__ == "__main__":
     """
-    TinyStories 학습 결과
+    ## TinyStories 학습 결과
     1. non-chunking
         init vocab: 0.026ms
         pre-tokenization: 216829.838ms
@@ -29,6 +29,14 @@ if __name__ == "__main__":
         pre-tokenization: 30908.055ms
         merge: 25901.002ms
         elapsed time: 56809.080ms
+    6. optimize searching max_pair using heapq
+        special_tokens:['<|endoftext|>']
+        num_chunks:16
+        init vocab: 0.021ms
+        pre-tokenization: 32743.606ms
+        merge: 10397.472ms
+        elapsed time: 43141.098ms
+
 
 
     (b) Profile your code. What part of the tokenizer training process takes the most time?
@@ -42,11 +50,11 @@ if __name__ == "__main__":
                 1    3.487    3.487  134.180  134.180 bpe.py:14(train_bpe)
           9927794    1.156    0.000    1.156    0.000 {method 'get' of 'dict' objects}
 
-    ## owt_valid 학습
+    ## owt_valid 학습 결과
+    max pair 찾는 로직 개선 필요.
+    owt는 TinyStories에 비해 단어가 다양하고 불규칙적인 데이터여서 merge가 병목이다.
 
-    1. owt_valid train: max pair 찾는 로직 개선 필요.
-        owt는 TinyStories에 비해 단어가 다양하고 불규칙적인 데이터여서 merge가 병목.
-        ===bpe tokenizer train variables===
+    1. train with owt, none-heapq
         vocab_size: 32000
         special_tokens:['<|endoftext|>']
         num_chunks:16
@@ -54,6 +62,15 @@ if __name__ == "__main__":
         pre-tokenization: 4957.090ms
         merge: 1911055.916ms
         elapsed time: 1916013.028ms
+
+    2. train with owt, using heapq
+        vocab_size: 32000
+        special_tokens:['<|endoftext|>']
+        num_chunks:16
+        init vocab: 0.021ms
+        pre-tokenization: 4702.632ms
+        merge: 260860.510ms
+        elapsed time: 265563.163ms
     """
 
     parser = argparse.ArgumentParser()
