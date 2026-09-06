@@ -19,6 +19,18 @@ if __name__ == "__main__":
         pre-tokenization: 35489.720ms
         merge: 28103.325ms
         elapsed time: 63593.067ms
+    4. chunking & parallelize pre-tokenization with 16 chunks (12core CPU)
+        init vocab: 0.023ms
+        pre-tokenization: 33896.956ms
+        merge: 26315.086ms
+        elapsed time: 60212.065ms
+    5. chunking & parallelize pre-tokenization with 32 chunks (12core CPU)
+        init vocab: 0.023ms
+        pre-tokenization: 30908.055ms
+        merge: 25901.002ms
+        elapsed time: 56809.080ms
+
+
     (b) Profile your code. What part of the tokenizer training process takes the most time?
         pre_tokenization에서 가장 많은 시간을 사용한다.(poll은 worker가 기다린 시간)
         merge 단계에서 가장 빈번한 pair를 찾는 시간이 그 다음 대부분을 차지한다.
