@@ -1,5 +1,5 @@
+import argparse
 import pickle
-import sys
 
 from cs336_basics import bpe
 
@@ -43,16 +43,22 @@ if __name__ == "__main__":
           9927794    1.156    0.000    1.156    0.000 {method 'get' of 'dict' objects}
     """
 
-    if "-tiny" in sys.argv:
-        bpe.train_bpe_tinystories()
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--chunks", type=int, default=4)
+    parser.add_argument("--data", type=str, default="tiny")
+    args = parser.parse_args()
+
+    if args.data == "tiny":
+        bpe.train_bpe_tinystories(vocab_size=10000, special_tokens=["<|endoftext|>"], num_chunks=args.chunks)
         with open("TinyStories_merges.pkl", "rb") as f:
             merges = pickle.load(f)
-    elif "-owt" in sys.argv:
-        bpe.train_bpe_expts_owt()
+    elif args.data == "owt":
+        bpe.train_bpe_expts_owt(vocab_size=32000, special_tokens=["<|endoftext|>"], num_chunks=args.chunks)
         with open("owt_merges.pkl", "rb") as f:
             merges = pickle.load(f)
     else:
-        bpe.train_bpe_examples()
+        bpe.train_bpe_examples(vocab_size=10000, special_tokens=["<|endoftext|>"], num_chunks=args.chunks)
         with open("examples_merges.pkl", "rb") as f:
             merges = pickle.load(f)
 

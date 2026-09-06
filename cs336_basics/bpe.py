@@ -41,8 +41,7 @@ def train_bpe(
     str_pre_tokens: Counter[str] = Counter()
     with open(input_path, "rb") as f:
         if special_tokens:
-            num_processes = min(num_chunks, os.cpu_count())
-            boundaries = find_chunk_boundaries(f, num_processes, special_tokens[0].encode("utf-8"))
+            boundaries = find_chunk_boundaries(f, num_chunks, special_tokens[0].encode("utf-8"))
             special_token_pat = "|".join(regex.escape(special_token) for special_token in special_tokens)
 
             with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
@@ -214,31 +213,31 @@ def find_chunk_boundaries(
 
 
 # train with tinystories_sample.txt
-def train_bpe_examples():
-    vocab, merges = train_bpe(
-        "./tests/fixtures/tinystories_sample.txt",
-        10000,
-        ["<|endoftext|>"],
-    )
+def train_bpe_examples(vocab_size: int, special_tokens: list[str], num_chunks: int):
+    log_test(vocab_size, special_tokens, num_chunks)
+    vocab, merges = train_bpe("./tests/fixtures/tinystories_sample.txt", vocab_size, special_tokens, num_chunks)
     pickle_tokenizer(vocab, merges, "examples")
 
 
 # train with TinyStoriesV2-GPT4-train.txt
-def train_bpe_tinystories():
+def train_bpe_tinystories(vocab_size: int, special_tokens: list[str], num_chunks: int):
+    log_test(vocab_size, special_tokens, num_chunks)
     vocab, merges = train_bpe(
         "./data/TinyStoriesV2-GPT4-train.txt",
-        10000,
-        ["<|endoftext|>"],
-        8,
+        vocab_size,
+        special_tokens,
+        num_chunks,
     )
     pickle_tokenizer(vocab, merges, "TinyStories")
 
 
-def train_bpe_expts_owt():
+def train_bpe_expts_owt(vocab_size: int, special_tokens: list[str], num_chunks: int):
+    log_test(vocab_size, special_tokens, num_chunks)
     vocab, merges = train_bpe(
         "./data/owt_train.txt",
-        32000,
-        ["<|endoftext|>"],
+        vocab_size,
+        special_tokens,
+        num_chunks,
     )
     pickle_tokenizer(vocab, merges, "owt")
 
@@ -249,3 +248,8 @@ def pickle_tokenizer(vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]],
 
     with open(f"{prefix}_merges.pkl", "wb") as f:
         pickle.dump(merges, f)
+
+
+def log_test(vocab_size: int, special_tokens: list[str], num_chunks: int):
+    print("===bpe tokenizer train variables===")
+    print(f"vocab_size: {vocab_size}\nspecial_tokens:{special_tokens}\nnum_chunks:{num_chunks}")
