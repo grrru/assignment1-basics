@@ -234,7 +234,7 @@ def train_bpe_tinystories(vocab_size: int, special_tokens: list[str], num_chunks
 def train_bpe_expts_owt(vocab_size: int, special_tokens: list[str], num_chunks: int):
     log_test(vocab_size, special_tokens, num_chunks)
     vocab, merges = train_bpe(
-        "./data/owt_train.txt",
+        "./data/owt_valid.txt",
         vocab_size,
         special_tokens,
         num_chunks,

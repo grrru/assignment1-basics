@@ -41,6 +41,19 @@ if __name__ == "__main__":
         369218707   18.108    0.000   18.108    0.000 bpe.py:102(<lambda>)
                 1    3.487    3.487  134.180  134.180 bpe.py:14(train_bpe)
           9927794    1.156    0.000    1.156    0.000 {method 'get' of 'dict' objects}
+
+    ## owt_valid 학습
+
+    1. owt_valid train: max pair 찾는 로직 개선 필요.
+        owt는 TinyStories에 비해 단어가 다양하고 불규칙적인 데이터여서 merge가 병목.
+        ===bpe tokenizer train variables===
+        vocab_size: 32000
+        special_tokens:['<|endoftext|>']
+        num_chunks:16
+        init vocab: 0.022ms
+        pre-tokenization: 4957.090ms
+        merge: 1911055.916ms
+        elapsed time: 1916013.028ms
     """
 
     parser = argparse.ArgumentParser()
