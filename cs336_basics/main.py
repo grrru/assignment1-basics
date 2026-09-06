@@ -79,6 +79,16 @@ if __name__ == "__main__":
 
             - 1757330    9.627    0.000   10.746    0.000 {built-in method _heapq.heappop}
             heappop이 92% 절감
+
+    ## owt_train 학습 결과
+        vocab_size: 32000
+        special_tokens:['<|endoftext|>']
+        num_chunks:64
+        init vocab: 0.022ms
+        pre-tokenization: 161219.025ms
+        merge: 667513.738ms
+        elapsed time: 828732.785ms
+
     """
 
     parser = argparse.ArgumentParser()
