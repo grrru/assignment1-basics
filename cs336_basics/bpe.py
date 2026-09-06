@@ -264,12 +264,23 @@ def train_bpe_tinystories(vocab_size: int, special_tokens: list[str], num_chunks
 def train_bpe_expts_owt(vocab_size: int, special_tokens: list[str], num_chunks: int):
     log_test(vocab_size, special_tokens, num_chunks)
     vocab, merges = train_bpe(
-        "./data/owt_valid.txt",
+        "./data/owt_train.txt",
         vocab_size,
         special_tokens,
         num_chunks,
     )
     pickle_tokenizer(vocab, merges, "owt")
+
+
+def train_bpe_expts_owt_valid(vocab_size: int, special_tokens: list[str], num_chunks: int):
+    log_test(vocab_size, special_tokens, num_chunks)
+    vocab, merges = train_bpe(
+        "./data/owt_valid.txt",
+        vocab_size,
+        special_tokens,
+        num_chunks,
+    )
+    pickle_tokenizer(vocab, merges, "owt_valid")
 
 
 def pickle_tokenizer(vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]], prefix: str):

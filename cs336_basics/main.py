@@ -91,6 +91,10 @@ if __name__ == "__main__":
         bpe.train_bpe_tinystories(vocab_size=10000, special_tokens=["<|endoftext|>"], num_chunks=args.chunks)
         with open("TinyStories_merges.pkl", "rb") as f:
             merges = pickle.load(f)
+    elif args.data == "owt_valid":
+        bpe.train_bpe_expts_owt_valid(vocab_size=32000, special_tokens=["<|endoftext|>"], num_chunks=args.chunks)
+        with open("owt_valid_merges.pkl", "rb") as f:
+            merges = pickle.load(f)
     elif args.data == "owt":
         bpe.train_bpe_expts_owt(vocab_size=32000, special_tokens=["<|endoftext|>"], num_chunks=args.chunks)
         with open("owt_merges.pkl", "rb") as f:
