@@ -12,13 +12,12 @@ PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s
 
 
 def train_bpe(
-    input_path: str, vocab_size: int, special_tokens: list[str]
+    input_path: str, vocab_size: int, special_tokens: list[str], num_chunks: int = 4
 ) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]:
     """
-    Return vocab and merges
-
-    vocab: The tokenizer vocabulary, a mapping from int to bytes
-    merges: A list of BPE merges
+    Returns:
+        vocab: The tokenizer vocabulary, a mapping from int to bytes
+        merges: A list of BPE merges
     """
 
     start_time = time.perf_counter()
@@ -42,7 +41,7 @@ def train_bpe(
     str_pre_tokens: Counter[str] = Counter()
     with open(input_path, "rb") as f:
         if special_tokens:
-            num_processes = min(4, os.cpu_count())
+            num_processes = min(num_chunks, os.cpu_count())
             boundaries = find_chunk_boundaries(f, num_processes, special_tokens[0].encode("utf-8"))
             special_token_pat = "|".join(regex.escape(special_token) for special_token in special_tokens)
 
@@ -93,10 +92,6 @@ def train_bpe(
     while len(vocab) < vocab_size:
         if not pairs:
             break
-
-        if len(vocab) % 100 == 0:
-            elapsed_time = time.perf_counter()
-            print(f"merged {len(vocab)} pairs: {(elapsed_time - pre_tokenizaition_time) * 1000:.3f}ms")
 
         # find max count pair (count first, byte order second)
         max_pair = max(pairs.items(), key=lambda item: (item[1], item[0]))[0]
@@ -152,7 +147,6 @@ def train_bpe(
 
     merge_time = time.perf_counter()
     print(f"merge: {(merge_time - pre_tokenizaition_time) * 1000:.3f}ms")
-    print("==================================================")
     print(f"elapsed time: {(merge_time - start_time) * 1000:.3f}ms")
 
     return vocab, merges
@@ -219,25 +213,34 @@ def find_chunk_boundaries(
     return sorted(set(chunk_boundaries))
 
 
+# train with tinystories_sample.txt
 def train_bpe_examples():
     vocab, merges = train_bpe(
-        "/Users/grrru/workspace/stanford-cs336/assignment1-basics/tests/fixtures/tinystories_sample.txt",
+        "./tests/fixtures/tinystories_sample.txt",
         10000,
         ["<|endoftext|>"],
     )
-
     pickle_tokenizer(vocab, merges, "examples")
 
 
-# train tinystories
+# train with TinyStoriesV2-GPT4-train.txt
 def train_bpe_tinystories():
     vocab, merges = train_bpe(
-        "/Users/grrru/workspace/stanford-cs336/assignment1-basics/data/TinyStoriesV2-GPT4-train.txt",
+        "./data/TinyStoriesV2-GPT4-train.txt",
         10000,
         ["<|endoftext|>"],
+        8,
     )
-
     pickle_tokenizer(vocab, merges, "TinyStories")
+
+
+def train_bpe_expts_owt():
+    vocab, merges = train_bpe(
+        "./data/owt_train.txt",
+        32000,
+        ["<|endoftext|>"],
+    )
+    pickle_tokenizer(vocab, merges, "owt")
 
 
 def pickle_tokenizer(vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]], prefix: str):

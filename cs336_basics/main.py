@@ -1,21 +1,27 @@
 import pickle
+import sys
 
 from cs336_basics import bpe
 
 if __name__ == "__main__":
     """
+    TinyStories 학습 결과
     1. non-chunking
         init vocab: 0.026ms
         pre-tokenization: 216829.838ms
         elapsed time: 247645.444ms
-    2. chunking & parallelize pre-tokenization
+    2. chunking & parallelize pre-tokenization with 4 chunks
         init vocab: 0.024ms
         pre-tokenization: 73145.086ms
         elapsed time: 104329.446ms
-
+    3. chunking & parallelize pre-tokenization with 8 chunks
+        init vocab: 0.022ms
+        pre-tokenization: 35489.720ms
+        merge: 28103.325ms
+        elapsed time: 63593.067ms
     (b) Profile your code. What part of the tokenizer training process takes the most time?
         pre_tokenization에서 가장 많은 시간을 사용한다.(poll은 worker가 기다린 시간)
-        merge 단계에서 가장 빈번한 pair를 찾는 시간이 그 다음 대부분을 차지
+        merge 단계에서 가장 빈번한 pair를 찾는 시간이 그 다음 대부분을 차지한다.
  
         ncalls  tottime  percall  cumtime  percall filename:lineno(function)
                19   73.646    3.876   73.646    3.876 {method 'poll' of 'select.poll' objects}
@@ -24,10 +30,19 @@ if __name__ == "__main__":
                 1    3.487    3.487  134.180  134.180 bpe.py:14(train_bpe)
           9927794    1.156    0.000    1.156    0.000 {method 'get' of 'dict' objects}
     """
-    bpe.train_bpe_tinystories()
 
-    with open("TinyStories_merges.pkl", "rb") as f:
-        merges = pickle.load(f)
+    if "-tiny" in sys.argv:
+        bpe.train_bpe_tinystories()
+        with open("TinyStories_merges.pkl", "rb") as f:
+            merges = pickle.load(f)
+    elif "-owt" in sys.argv:
+        bpe.train_bpe_expts_owt()
+        with open("owt_merges.pkl", "rb") as f:
+            merges = pickle.load(f)
+    else:
+        bpe.train_bpe_examples()
+        with open("examples_merges.pkl", "rb") as f:
+            merges = pickle.load(f)
 
-        for s in merges[:21]:
-            print(b"".join(s), s)
+    for s in merges[:21]:
+        print(b"".join(s), s)
