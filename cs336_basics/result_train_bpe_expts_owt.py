@@ -1,6 +1,6 @@
-import pickle
+import json
 
-with open("owt_vocab.pkl", "rb") as f:
+with open("artifacts/owt_vocab.json") as f:
     """
     Problem (train_bpe_expts_owt):  BPE Training on OpenWebText (2 points)
 
@@ -53,10 +53,10 @@ with open("owt_vocab.pkl", "rb") as f:
     4376,  refrigerator
     4472,  veterinarian
     """
-    vocab: dict[int, bytes] = pickle.load(f)
-    li = [((item[0], item[1])) for item in vocab.items()]
+    vocab: dict[str, int] = json.load(f)
+    li = [((item[1], item[0])) for item in vocab.items()]
 
     li.sort(key=lambda x: len(x[1]), reverse=True)
 
     for el in li[:20]:
-        print(f"{el[0]}, {el[1].decode('utf-8')}")
+        print(f"{el[0]}, {el[1]}")
