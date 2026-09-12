@@ -1,5 +1,7 @@
 import json
 
+from cs336_basics.common import CHAR_TO_BYTE
+
 with open("artifacts/owt_vocab.json") as f:
     """
     Problem (train_bpe_expts_owt):  BPE Training on OpenWebText (2 points)
@@ -59,4 +61,7 @@ with open("artifacts/owt_vocab.json") as f:
     li.sort(key=lambda x: len(x[1]), reverse=True)
 
     for el in li[:20]:
-        print(f"{el[0]}, {el[1]}")
+        text = b"".join([b.to_bytes() for b in [CHAR_TO_BYTE[s] for s in el[1]]]).decode(
+            encoding="utf-8", errors="replace"
+        )
+        print(f"{el[0]}, {text}")

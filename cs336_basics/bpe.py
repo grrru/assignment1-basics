@@ -9,6 +9,8 @@ from typing import BinaryIO
 
 import regex
 
+from cs336_basics import common
+
 
 PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
@@ -295,35 +297,23 @@ def save_vocab(vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]], file_
 
 
 def pickle_vocab(vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]], file_prefix: str):
-    with open(f"{file_prefix}_vocab.txt", "wb") as f:
+    with open(f"artifacts/{file_prefix}_vocab.pkl", "wb") as f:
         pickle.dump(vocab, f)
 
-    with open(f"{file_prefix}_merges.txt", "wb") as f:
+    with open(f"artifacts/{file_prefix}_merges.pkl", "wb") as f:
         pickle.dump(merges, f)
 
 
 def json_vocab(vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]], file_prefix: str):
-    d = make_safety_byte_dict()
     with open(file=f"artifacts/{file_prefix}_vocab.json", mode="w", encoding="utf-8") as f:
-        data: dict[str, int] = {"".join([d[b] for b in v]): k for k, v in vocab.items()}
+        data: dict[str, int] = {"".join([common.BYTE_TO_CHAR[b] for b in v]): k for k, v in vocab.items()}
         json.dump(data, f)
 
     with open(file=f"artifacts/{file_prefix}_merges.txt", mode="w", encoding="utf-8") as f:
         for pair in merges:
-            f.write(f"{''.join([d[b] for b in pair[0]])} {''.join([d[b] for b in pair[1]])}\n")
-
-
-def make_safety_byte_dict() -> dict[int, str]:
-    bs = list(range(ord("!"), ord("~") + 1)) + list(range(ord("¡"), ord("¬") + 1)) + list(range(ord("®"), ord("ÿ") + 1))
-    cs = bs[:]
-    n = 0
-    for b in range(2**8):
-        if b not in bs:
-            bs.append(b)
-            cs.append(2**8 + n)
-            n += 1
-    characters = [chr(n) for n in cs]
-    return dict(zip(bs, characters))
+            f.write(
+                f"{''.join([common.BYTE_TO_CHAR[b] for b in pair[0]])} {''.join([common.BYTE_TO_CHAR[b] for b in pair[1]])}\n"
+            )
 
 
 def log_test(vocab_size: int, special_tokens: list[str], num_chunks: int):
