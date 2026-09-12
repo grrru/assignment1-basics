@@ -1,5 +1,5 @@
 import argparse
-import pickle
+from itertools import islice
 
 from cs336_basics import bpe
 
@@ -99,20 +99,21 @@ if __name__ == "__main__":
 
     if args.data == "tiny":
         bpe.train_bpe_tinystories(vocab_size=10000, special_tokens=["<|endoftext|>"], num_chunks=args.chunks)
-        with open("TinyStories_merges.pkl", "rb") as f:
-            merges = pickle.load(f)
+        with open("artifacts/TinyStories_merges.txt") as f:
+            for line in islice(f, 20):
+                print(line.strip())
     elif args.data == "owt_valid":
         bpe.train_bpe_expts_owt_valid(vocab_size=32000, special_tokens=["<|endoftext|>"], num_chunks=args.chunks)
-        with open("owt_valid_merges.pkl", "rb") as f:
-            merges = pickle.load(f)
+        with open("artifacts/owt_valid_merges.txt") as f:
+            for line in islice(f, 20):
+                print(line.strip())
     elif args.data == "owt":
         bpe.train_bpe_expts_owt(vocab_size=32000, special_tokens=["<|endoftext|>"], num_chunks=args.chunks)
-        with open("owt_merges.pkl", "rb") as f:
-            merges = pickle.load(f)
+        with open("artifacts/owt_merges.txt") as f:
+            for line in islice(f, 20):
+                print(line.strip())
     else:
         bpe.train_bpe_examples(vocab_size=10000, special_tokens=["<|endoftext|>"], num_chunks=args.chunks)
-        with open("examples_merges.pkl", "rb") as f:
-            merges = pickle.load(f)
-
-    for s in merges[:21]:
-        print(b"".join(s), s)
+        with open("artifacts/examples_merges.txt") as f:
+            for line in islice(f, 20):
+                print(line.strip())

@@ -1,5 +1,6 @@
 from concurrent.futures import ProcessPoolExecutor, Future
 import heapq
+import json
 import os
 import pickle
 import time
@@ -246,7 +247,7 @@ def find_chunk_boundaries(
 def train_bpe_examples(vocab_size: int, special_tokens: list[str], num_chunks: int):
     log_test(vocab_size, special_tokens, num_chunks)
     vocab, merges = train_bpe("./tests/fixtures/tinystories_sample.txt", vocab_size, special_tokens, num_chunks)
-    pickle_tokenizer(vocab, merges, "examples")
+    save_vocab(vocab, merges, "examples", "json")
 
 
 # train with TinyStoriesV2-GPT4-train.txt
@@ -258,7 +259,7 @@ def train_bpe_tinystories(vocab_size: int, special_tokens: list[str], num_chunks
         special_tokens,
         num_chunks,
     )
-    pickle_tokenizer(vocab, merges, "TinyStories")
+    save_vocab(vocab, merges, "TinyStories", "json")
 
 
 def train_bpe_expts_owt(vocab_size: int, special_tokens: list[str], num_chunks: int):
@@ -269,7 +270,7 @@ def train_bpe_expts_owt(vocab_size: int, special_tokens: list[str], num_chunks: 
         special_tokens,
         num_chunks,
     )
-    pickle_tokenizer(vocab, merges, "owt")
+    save_vocab(vocab, merges, "owt", "json")
 
 
 def train_bpe_expts_owt_valid(vocab_size: int, special_tokens: list[str], num_chunks: int):
@@ -280,15 +281,49 @@ def train_bpe_expts_owt_valid(vocab_size: int, special_tokens: list[str], num_ch
         special_tokens,
         num_chunks,
     )
-    pickle_tokenizer(vocab, merges, "owt_valid")
+    save_vocab(vocab, merges, "owt_valid", "json")
 
 
-def pickle_tokenizer(vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]], prefix: str):
-    with open(f"{prefix}_vocab.pkl", "wb") as f:
+def save_vocab(vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]], file_prefix: str, save_type: str):
+    match save_type:
+        case "pickle":
+            pickle_vocab(vocab, merges, file_prefix)
+        case "json":
+            json_vocab(vocab, merges, file_prefix)
+        case _:
+            json_vocab(vocab, merges, file_prefix)
+
+
+def pickle_vocab(vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]], file_prefix: str):
+    with open(f"{file_prefix}_vocab.txt", "wb") as f:
         pickle.dump(vocab, f)
 
-    with open(f"{prefix}_merges.pkl", "wb") as f:
+    with open(f"{file_prefix}_merges.txt", "wb") as f:
         pickle.dump(merges, f)
+
+
+def json_vocab(vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]], file_prefix: str):
+    d = make_safety_byte_dict()
+    with open(file=f"artifacts/{file_prefix}_vocab.json", mode="w", encoding="utf-8") as f:
+        data: dict[str, int] = {"".join([d[b] for b in v]): k for k, v in vocab.items()}
+        json.dump(data, f)
+
+    with open(file=f"artifacts/{file_prefix}_merges.txt", mode="w", encoding="utf-8") as f:
+        for pair in merges:
+            f.write(f"{''.join([d[b] for b in pair[0]])} {''.join([d[b] for b in pair[1]])}\n")
+
+
+def make_safety_byte_dict() -> dict[int, str]:
+    bs = list(range(ord("!"), ord("~") + 1)) + list(range(ord("¡"), ord("¬") + 1)) + list(range(ord("®"), ord("ÿ") + 1))
+    cs = bs[:]
+    n = 0
+    for b in range(2**8):
+        if b not in bs:
+            bs.append(b)
+            cs.append(2**8 + n)
+            n += 1
+    characters = [chr(n) for n in cs]
+    return dict(zip(bs, characters))
 
 
 def log_test(vocab_size: int, special_tokens: list[str], num_chunks: int):
