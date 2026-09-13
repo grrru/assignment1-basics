@@ -60,4 +60,12 @@ class Tokenizer:
         """
         Decode a sequence of token IDs into text.
         """
-        pass
+        res: list[str] = []
+        for id in ids:
+            if id not in self.vocab:
+                print(f"Invalid id: {id}")
+                continue
+
+            res.append(self.vocab[id].decode(encoding="utf-8", errors="replace"))
+
+        return "".join(res)
